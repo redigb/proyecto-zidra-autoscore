@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "author": "Renzo RD",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 48, "left": -215.96, "attrs": {} },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 121.4,
+      "left": -364.8,
+      "attrs": { "color": "green" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "btn1:1.r", "esp:33", "green", [ "h0" ] ],
+    [ "esp:GND.2", "btn1:2.r", "black", [ "v-96", "h-153.6", "v172.8", "h-9.6" ] ]
+  ],
+  "dependencies": {}
+}

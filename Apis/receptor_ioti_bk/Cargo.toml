@@ -1,0 +1,10 @@
+[package]
+name = "receptor_ioti_bk"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.6", features = ["ws"] }
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+serde_json = "1.0"
