@@ -1,0 +1,12 @@
+
+spring:
+  port: 3050
+  address: 0.0.0.0
+
+  application:
+    name: main-bk-service
+
+  r2dbcs:
+    url: jdbc:postgresql://localhost:5432/service_proyect_ia
+    username: postgres
+    password:

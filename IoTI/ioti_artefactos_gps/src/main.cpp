@@ -1,168 +1,209 @@
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
+#include <SPI.h>
+#include <SD.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
-// Credenciales WiFi para Wokwi
-const char* ssid = "Wokwi-GUEST";
-const char* password = "";
+// ---- Configuración OLED ----
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-// Endpoint API (servidor Axum en entorno local)
-const char* serverName = "http://192.168.0.104:3005/gps";
+// WiFi Wokwi - local
+const char *ssid = "Wokwi-GUEST";
+const char *password = "";
 
-// Simular datos GPS
-float latitude = 19.4326; // Latitud inicial (ej., Ciudad de México)
-float longitude = -99.1332; // Longitud inicial
-float speed = 0.0; // Velocidad en km/h (0 para electrodoméstico fijo)
-int fuelLevel = 75; // Nivel simulado de "combustible" (nivel de energía %)
+// Simulación de servidor
+const char *serverName = "http://test-server.local/simulated";
 
-// Simulación de batería y energía
-int batteryLevel = 85; // Nivel inicial de batería (0-100%)
-const int powerPin = 33; // Pin GPIO para interruptor de energía externa
-bool externalPower = false; // Estado actual de la fuente de energía
-String powerSource = "Batería"; // "Externa" o "Batería"
+// Pines
+const int ledOnline = 25;
+const int ledOffline = 26;
+const int ledSD = 27;
+const int chipSelect = 5;
+const int btnPin = 4;
 
-// Tasas de carga/descarga (por ciclo de loop, cada 5s)
-const int chargeRate = 5; // +5% por 5s al cargar
-const int dischargeRate = 2; // -2% por 5s en batería
+// Variables GPS + sistema
+float latitude = 19.4326;
+float longitude = -99.1332;
+int batteryLevel = 100;
+bool externalPower = false;
+bool fakeWiFiConnected = true;
+unsigned long lastWiFiToggle = 0;
+unsigned long wifiCycleTime = 30000;
 
-// Fuerza de señal simulada
-int signalStrength = 92; // 0-100%
-
-// Historial de ubicaciones (hasta 3 entradas)
-String locationHistory[3]; // Almacena cadenas JSON para ubicaciones
-int locationIndex = 0; // Índice actual en el historial
-int locationCount = 0; // Número de ubicaciones almacenadas
-
-// Simular timestamps
+const int chargeRate = 5;    // +5% cada ciclo
+const int dischargeRate = 2; // -2% cada ciclo
+int signalStrength = 95;
 unsigned long lastUpdateTime = 0;
 String statuses[] = {"Pago validado", "Ubicación confirmada", "Conexión establecida"};
 int statusIndex = 0;
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
-  Serial.println("Iniciando Rastreador GPS ESP32 con Simulación de Batería...");
+  Serial.println("🚀 Iniciando GPS híbrido automático...");
 
-  // Configurar pin de energía (botón) con pull-up interno
-  pinMode(powerPin, INPUT_PULLUP);
+  pinMode(ledOnline, OUTPUT);
+  pinMode(ledOffline, OUTPUT);
+  pinMode(ledSD, OUTPUT);
+  pinMode(btnPin, INPUT_PULLUP);
 
-  // Conectar a WiFi
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Conectando a WiFi...");
+  // ---- Inicializar pantalla ----
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+  {
+    Serial.println("⚠️ Error OLED");
+    for (;;)
+      ;
   }
-  Serial.println("Conectado a WiFi");
-  Serial.print("Dirección IP: ");
-  Serial.println(WiFi.localIP());
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  // SD
+  if (!SD.begin(chipSelect))
+  {
+    Serial.println("⚠️ Error al iniciar la tarjeta SD");
+  }
+  else
+  {
+    Serial.println("✅ Tarjeta SD lista");
+  }
+
+  // WiFi inicial
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\n✅ WiFi conectado a: " + WiFi.localIP().toString());
+
+  lastWiFiToggle = millis();
 }
 
-void loop() {
-  // Verificar estado de energía externa (botón presionado = LOW = externa conectada)
-  externalPower = (digitalRead(powerPin) == LOW);
+void mostrarPantalla()
+{
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("GPS Hibrido");
+  display.setCursor(0, 12);
+  display.print("Lat: ");
+  display.print(latitude, 4);
+  display.setCursor(0, 22);
+  display.print("Lng: ");
+  display.print(longitude, 4);
+  display.setCursor(0, 32);
+  display.print("Bateria: ");
+  display.print(batteryLevel);
+  display.print("%");
+  display.setCursor(0, 42);
+  display.print("Fuente: ");
+  display.print(externalPower ? "Corriente" : "Bateria");
+  display.display();
+}
 
-  // Simular gestión de energía
-  if (externalPower) {
-    powerSource = "Externa";
-    if (batteryLevel < 100) {
-      batteryLevel += chargeRate;
-      if (batteryLevel > 100) batteryLevel = 100;
-      Serial.println("Cargando batería...");
-    } else {
-      Serial.println("Batería llena, usando solo energía externa.");
+void loop()
+{
+  unsigned long now = millis();
+
+  // 🔘 Botón para alternar fuente manualmente (override)
+  if (digitalRead(btnPin) == LOW)
+  {
+    externalPower = !externalPower;
+    Serial.println("⚡ Cambio manual de fuente por botón");
+    delay(300); // anti-rebote
+  }
+
+  // 🔁 Ciclo automático de energía
+  if (batteryLevel <= 0)
+  {
+    externalPower = true; // fuerza a corriente
+  }
+  else if (batteryLevel >= 100)
+  {
+    externalPower = false; // fuerza a batería
+  }
+
+  // 🔋 Gestión de energía
+  if (externalPower)
+  {
+    batteryLevel += chargeRate;
+    if (batteryLevel > 100)
+      batteryLevel = 100;
+  }
+  else
+  {
+    batteryLevel -= dischargeRate;
+    if (batteryLevel < 0)
+      batteryLevel = 0;
+  }
+
+  // 🔁 Ciclo WiFi simulado
+  if (now - lastWiFiToggle > wifiCycleTime)
+  {
+    fakeWiFiConnected = !fakeWiFiConnected;
+    lastWiFiToggle = now;
+    Serial.println(fakeWiFiConnected ? "🌐 WiFi RESTABLECIDO" : "🚫 WiFi DESCONECTADO");
+  }
+
+  // 📡 Simular GPS
+  latitude += random(-5, 5) / 10000.0;
+  longitude += random(-5, 5) / 10000.0;
+  signalStrength = random(80, 100);
+  lastUpdateTime = now;
+
+  // 📦 Crear JSON
+  StaticJsonDocument<400> doc;
+  doc["id"] = "ART-HIBRIDO-001";
+  doc["tipo"] = "GPS híbrido";
+  doc["estado"] = fakeWiFiConnected ? "online" : "offline";
+  doc["lat"] = latitude;
+  doc["lng"] = longitude;
+  doc["bateria"] = batteryLevel;
+  doc["señal"] = signalStrength;
+  doc["fuente"] = externalPower ? "Corriente" : "Batería";
+  doc["status"] = statuses[statusIndex];
+  statusIndex = (statusIndex + 1) % 3;
+
+  String payload;
+  serializeJson(doc, payload);
+  Serial.println("📤 Payload:");
+  Serial.println(payload);
+
+  // 🚦LEDs
+  digitalWrite(ledOnline, fakeWiFiConnected ? HIGH : LOW);
+  digitalWrite(ledOffline, !fakeWiFiConnected ? HIGH : LOW);
+
+  // Enviar o guardar
+  if (fakeWiFiConnected)
+  {
+    digitalWrite(ledSD, LOW);
+    Serial.println("🛰️ Enviando al servidor...");
+    Serial.println("✅ Simulación de envío completada (no real).");
+  }
+  else
+  {
+    digitalWrite(ledSD, HIGH);
+    File file = SD.open("/gps_log.txt", FILE_APPEND);
+    if (file)
+    {
+      file.println(payload);
+      file.close();
+      Serial.println("💾 Guardado en SD (offline)");
     }
-  } else {
-    powerSource = "Batería";
-    if (batteryLevel > 0) {
-      batteryLevel -= dischargeRate;
-      if (batteryLevel < 0) batteryLevel = 0;
-      Serial.println("Usando batería...");
-    } else {
-      Serial.println("Batería vacía! Dispositivo apagándose.");
+    else
+    {
+      Serial.println("⚠️ Error al guardar en SD");
     }
   }
 
-  // Proceder solo si hay energía
-  if (externalPower || batteryLevel > 0) {
-    // Simular movimiento GPS (mínimo para electrodoméstico fijo)
-    latitude += random(-1, 1) / 100000.0; // Cambio muy pequeño (errores de GPS)
-    longitude += random(-1, 1) / 100000.0;
-    speed = 0.0; // Siempre 0 para dispositivo fijo
-    fuelLevel = random(70, 80); // Nivel entre 70-80% (ej., nivel de energía)
-    signalStrength = random(80, 100); // Señal entre 80-100%
+  // 🔹 Mostrar en OLED
+  mostrarPantalla();
 
-    // Generar timestamp (ej., "10:30 AM")
-    unsigned long currentTime = millis();
-    int secondsSinceLast = (currentTime - lastUpdateTime) / 1000;
-    String lastUpdate = String(secondsSinceLast) + " segundos atrás";
-    if (secondsSinceLast < 1) lastUpdate = "ahora";
-    lastUpdateTime = currentTime;
-
-    // Crear entrada de ubicación
-    StaticJsonDocument<200> locationDoc;
-    locationDoc["lat"] = latitude;
-    locationDoc["lng"] = longitude;
-    locationDoc["timestamp"] = "10:" + String(30 - (locationIndex * 5)) + " AM"; // Tiempo mock
-    locationDoc["status"] = statuses[statusIndex];
-    statusIndex = (statusIndex + 1) % 3; // Ciclar por estados
-
-    String locationJson;
-    serializeJson(locationDoc, locationJson);
-    locationHistory[locationIndex] = locationJson;
-    locationIndex = (locationIndex + 1) % 3; // Ciclar de 0-2
-    if (locationCount < 3) locationCount++;
-
-    // Crear payload JSON principal
-    StaticJsonDocument<512> doc;
-    doc["id"] = "ART-001";
-    doc["name"] = "Rastreador GPS Electrodoméstico";
-    doc["type"] = "Appliance Tracker";
-    doc["status"] = WiFi.status() == WL_CONNECTED ? "online" : "offline";
-    JsonArray locations = doc.createNestedArray("locations");
-    for (int i = 0; i < locationCount; i++) {
-      int idx = (locationIndex - 1 - i + 3) % 3; // Obtener ubicaciones en orden inverso
-      if (locationHistory[idx] != "") {
-        StaticJsonDocument<200> loc;
-        deserializeJson(loc, locationHistory[idx]);
-        locations.add(loc);
-      }
-    }
-    doc["battery"] = batteryLevel;
-    doc["signal"] = signalStrength;
-    doc["lastUpdate"] = lastUpdate;
-    JsonObject data = doc.createNestedObject("data");
-    data["velocidad"] = String(speed) + " km/h";
-    data["combustible"] = String(fuelLevel) + "%";
-
-    String requestBody;
-    serializeJson(doc, requestBody);
-
-    // Imprimir en Serial Monitor para pruebas
-    Serial.println("Datos GPS Simulados:");
-    Serial.println(requestBody);
-
-    // Enviar al backend
-    if (WiFi.status() == WL_CONNECTED) {
-      HTTPClient http;
-      http.begin(serverName);
-      http.addHeader("Content-Type", "application/json");
-      int httpResponseCode = http.POST(requestBody);
-      if (httpResponseCode > 0) {
-        String response = http.getString();
-     //   Serial.println("Código de Respuesta HTTP: " + Sting(httpResponseCode));
-        Serial.println("Respuesta: " + response);
-      } else {
-        Serial.println("Error en la solicitud HTTP: " + String(httpResponseCode));
-      }
-      http.end();
-    }
-  } else {
-    Serial.println("No hay energía disponible.");
-  }
-
-  Serial.print("Nivel de Batería: ");
-  Serial.print(batteryLevel);
-  Serial.print("% | Fuente de Energía: ");
-  Serial.println(powerSource);
-
-  delay(5000); // Actualizar cada 5 segundos
+  Serial.printf("🔋 Batería: %d%% | Fuente: %s\n", batteryLevel, externalPower ? "Corriente" : "Batería");
+  delay(5000);
 }
