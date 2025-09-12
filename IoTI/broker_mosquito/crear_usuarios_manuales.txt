@@ -1,0 +1,72 @@
+
+
+Recomendacion : Agregar un modulo de autenticacion para evitar este proseso
+
+
+
+Perfecto 🙌, seguimos con el esquema manual, que es lo más simple y estable para empezar.
+
+🛠️ Resumen del flujo con usuarios manuales
+
+Cuando das de alta un GPS en tu backend (POST /api/gps):
+
+Generas su mqttUsername (ej: gps003) y mqttPassword (ej: abc123).
+
+Guardas esos valores en tu tabla IotiGps.
+
+En el broker Mosquitto (contenedor Docker):
+
+Agregas ese usuario al archivo de contraseñas:
+
+docker exec -it mosquitto mosquitto_passwd /mosquitto/config/passwords gps003
+
+
+Le asignas la misma contraseña que tu backend generó.
+
+ACL (Access Control List):
+
+Editas tu archivo acl para darle permisos:
+
+user gps003
+topic write gps/gps003/telemetria
+topic read  gps/gps003/commands
+
+
+El dispositivo GPS:
+
+Se conecta con username=gps003 y password=abc123.
+
+Solo puede publicar en gps/gps003/telemetria y leer en gps/gps003/commands.
+
+Tu backend:
+
+Con usuario backend, suscrito a gps/+/telemetria.
+
+Recibe todo lo que manden los GPS.
+
+Puede publicar comandos en gps/{deviceId}/commands.
+
+✅ Ventajas del modo manual
+
+Sencillo de entender y probar.
+
+Control total de cada dispositivo.
+
+Bueno para empezar con pocos GPS.
+
+⚠️ Limitaciones
+
+Cada vez que creas un GPS en el backend → también tienes que crear el usuario en Mosquitto y en el acl.
+
+Cuando llegues a muchos dispositivos (50, 100, 500) se volverá pesado.
+
+👉 Para que no te olvides:
+Cada vez que registres un nuevo GPS →
+
+Backend (mqttUsername + mqttPassword).
+
+Mosquitto (mosquitto_passwd).
+
+ACL (topic write + topic read).
+
+¿Quieres que te deje preparado un modelo de archivo acl genérico que te sirva de plantilla y solo vayas copiando/pegando cada nuevo GPS (gps003, gps004, etc.)?

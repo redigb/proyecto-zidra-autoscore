@@ -1,0 +1,13 @@
+# Backend: acceso total
+user backend
+topic readwrite #
+
+# gps001 -> device 6
+user gps001
+topic write gps/6/telemetria
+topic read  gps/6/commands
+
+# gps002 -> device 7
+user gps002
+topic write gps/7/telemetria
+topic read  gps/7/commands

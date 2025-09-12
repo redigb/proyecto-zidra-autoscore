@@ -1,209 +1,115 @@
 #include <WiFi.h>
+#include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include <HTTPClient.h>
-#include <SPI.h>
-#include <SD.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <TimeLib.h>
 
-// ---- Configuración OLED ----
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
-
-// WiFi Wokwi - local
+// ---- Config WiFi ----
 const char *ssid = "Wokwi-GUEST";
 const char *password = "";
 
-// Simulación de servidor
-const char *serverName = "http://test-server.local/simulated";
+// ---- Config MQTT ----
+const char* mqtt_server = "192.168.0.110";  // -- ip servidor o localHost
+const int mqtt_port = 1883;
 
-// Pines
-const int ledOnline = 25;
-const int ledOffline = 26;
-const int ledSD = 27;
-const int chipSelect = 5;
-const int btnPin = 4;
+// ---- DATOS DEL DISPOSITIVO
+const int id_dispositivo = 6;
+const char* mqtt_user = "gps001";             // usuario creado con mosquitto_passwd
+const char* mqtt_pass = "user01";             // contraseña
+String topic = "gps/" + String(id_dispositivo) + "/telemetria";
+const char* mqtt_topic = topic.c_str();  // tópico para publicar
 
-// Variables GPS + sistema
-float latitude = 19.4326;
-float longitude = -99.1332;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// ---- Variables de simulación ----
+float baseLat = -9.2954;   // Tingo María aprox
+float baseLon = -75.9981;
+float latitude = baseLat;
+float longitude = baseLon;
 int batteryLevel = 100;
-bool externalPower = false;
-bool fakeWiFiConnected = true;
-unsigned long lastWiFiToggle = 0;
-unsigned long wifiCycleTime = 30000;
+bool externalPower = true;
 
-const int chargeRate = 5;    // +5% cada ciclo
-const int dischargeRate = 2; // -2% cada ciclo
-int signalStrength = 95;
-unsigned long lastUpdateTime = 0;
-String statuses[] = {"Pago validado", "Ubicación confirmada", "Conexión establecida"};
-int statusIndex = 0;
+unsigned long lastMsg = 0;
+char msg[512];
 
-void setup()
-{
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("🔄 Intentando conexión MQTT...");
+    if (client.connect("gps001-client", mqtt_user, mqtt_pass)) {
+      Serial.println("✅ Conectado a MQTT");
+    } else {
+      Serial.print("❌ fallo, rc=");
+      Serial.print(client.state());
+      Serial.println(" → reintentando en 5 segundos");
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
   Serial.begin(115200);
-  Serial.println("🚀 Iniciando GPS híbrido automático...");
 
-  pinMode(ledOnline, OUTPUT);
-  pinMode(ledOffline, OUTPUT);
-  pinMode(ledSD, OUTPUT);
-  pinMode(btnPin, INPUT_PULLUP);
-
-  // ---- Inicializar pantalla ----
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
-  {
-    Serial.println("⚠️ Error OLED");
-    for (;;)
-      ;
-  }
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-
-  // SD
-  if (!SD.begin(chipSelect))
-  {
-    Serial.println("⚠️ Error al iniciar la tarjeta SD");
-  }
-  else
-  {
-    Serial.println("✅ Tarjeta SD lista");
-  }
-
-  // WiFi inicial
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED)
-  {
+  Serial.print("Conectando a WiFi...");
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\n✅ WiFi conectado a: " + WiFi.localIP().toString());
+  Serial.println("\n✅ WiFi conectado");
 
-  lastWiFiToggle = millis();
+  client.setServer(mqtt_server, mqtt_port);
 }
 
-void mostrarPantalla()
-{
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.print("GPS Hibrido");
-  display.setCursor(0, 12);
-  display.print("Lat: ");
-  display.print(latitude, 4);
-  display.setCursor(0, 22);
-  display.print("Lng: ");
-  display.print(longitude, 4);
-  display.setCursor(0, 32);
-  display.print("Bateria: ");
-  display.print(batteryLevel);
-  display.print("%");
-  display.setCursor(0, 42);
-  display.print("Fuente: ");
-  display.print(externalPower ? "Corriente" : "Bateria");
-  display.display();
-}
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
 
-void loop()
-{
   unsigned long now = millis();
+  if (now - lastMsg > 5000) {  // cada 5 seg
+    lastMsg = now;
 
-  // 🔘 Botón para alternar fuente manualmente (override)
-  if (digitalRead(btnPin) == LOW)
-  {
-    externalPower = !externalPower;
-    Serial.println("⚡ Cambio manual de fuente por botón");
-    delay(300); // anti-rebote
-  }
+    // 📡 Simular movimiento alrededor de Tingo María
+    latitude = baseLat + random(-50, 50) / 10000.0;
+    longitude = baseLon + random(-50, 50) / 10000.0;
 
-  // 🔁 Ciclo automático de energía
-  if (batteryLevel <= 0)
-  {
-    externalPower = true; // fuerza a corriente
-  }
-  else if (batteryLevel >= 100)
-  {
-    externalPower = false; // fuerza a batería
-  }
-
-  // 🔋 Gestión de energía
-  if (externalPower)
-  {
-    batteryLevel += chargeRate;
-    if (batteryLevel > 100)
-      batteryLevel = 100;
-  }
-  else
-  {
-    batteryLevel -= dischargeRate;
-    if (batteryLevel < 0)
-      batteryLevel = 0;
-  }
-
-  // 🔁 Ciclo WiFi simulado
-  if (now - lastWiFiToggle > wifiCycleTime)
-  {
-    fakeWiFiConnected = !fakeWiFiConnected;
-    lastWiFiToggle = now;
-    Serial.println(fakeWiFiConnected ? "🌐 WiFi RESTABLECIDO" : "🚫 WiFi DESCONECTADO");
-  }
-
-  // 📡 Simular GPS
-  latitude += random(-5, 5) / 10000.0;
-  longitude += random(-5, 5) / 10000.0;
-  signalStrength = random(80, 100);
-  lastUpdateTime = now;
-
-  // 📦 Crear JSON
-  StaticJsonDocument<400> doc;
-  doc["id"] = "ART-HIBRIDO-001";
-  doc["tipo"] = "GPS híbrido";
-  doc["estado"] = fakeWiFiConnected ? "online" : "offline";
-  doc["lat"] = latitude;
-  doc["lng"] = longitude;
-  doc["bateria"] = batteryLevel;
-  doc["señal"] = signalStrength;
-  doc["fuente"] = externalPower ? "Corriente" : "Batería";
-  doc["status"] = statuses[statusIndex];
-  statusIndex = (statusIndex + 1) % 3;
-
-  String payload;
-  serializeJson(doc, payload);
-  Serial.println("📤 Payload:");
-  Serial.println(payload);
-
-  // 🚦LEDs
-  digitalWrite(ledOnline, fakeWiFiConnected ? HIGH : LOW);
-  digitalWrite(ledOffline, !fakeWiFiConnected ? HIGH : LOW);
-
-  // Enviar o guardar
-  if (fakeWiFiConnected)
-  {
-    digitalWrite(ledSD, LOW);
-    Serial.println("🛰️ Enviando al servidor...");
-    Serial.println("✅ Simulación de envío completada (no real).");
-  }
-  else
-  {
-    digitalWrite(ledSD, HIGH);
-    File file = SD.open("/gps_log.txt", FILE_APPEND);
-    if (file)
-    {
-      file.println(payload);
-      file.close();
-      Serial.println("💾 Guardado en SD (offline)");
+    // 🔋 Simular batería
+    if (externalPower) {
+      batteryLevel += 2;
+      if (batteryLevel > 100) batteryLevel = 100;
+    } else {
+      batteryLevel -= 1;
+      if (batteryLevel < 0) batteryLevel = 0;
     }
-    else
-    {
-      Serial.println("⚠️ Error al guardar en SD");
-    }
+
+    // Generar timestamp ISO
+    char timestamp[25];
+    sprintf(timestamp, "%04d-%02d-%02dT%02d:%02d:%02d",
+            year(), month(), day(), hour(), minute(), second());
+
+    // 📦 JSON
+    StaticJsonDocument<512> doc;
+    doc["gpsDeviceId"] = id_dispositivo;
+    doc["latitud"] = latitude;
+    doc["longitud"] = longitude;
+    doc["fechaHora"] = timestamp;
+    doc["speed"] = random(20, 80);
+    doc["estadoEncendido"] = externalPower;
+
+    JsonObject extra = doc.createNestedObject("extraData");
+    extra["bateria"] = batteryLevel;
+    extra["fuente"] = externalPower ? "Corriente" : "Bateria";
+    extra["temperatura"] = random(25, 35); // temperatura simulada
+    extra["altitud"] = 650;                // altitud base Tingo María
+
+    String payload;
+    serializeJson(doc, payload);
+
+    Serial.println("📤 Publicando a MQTT:");
+    Serial.println(payload);
+
+    client.publish(mqtt_topic, payload.c_str());
   }
-
-  // 🔹 Mostrar en OLED
-  mostrarPantalla();
-
-  Serial.printf("🔋 Batería: %d%% | Fuente: %s\n", batteryLevel, externalPower ? "Corriente" : "Batería");
-  delay(5000);
 }
