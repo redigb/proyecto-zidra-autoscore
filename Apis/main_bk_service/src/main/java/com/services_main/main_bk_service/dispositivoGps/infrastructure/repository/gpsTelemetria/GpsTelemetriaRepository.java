@@ -38,6 +38,4 @@ public interface GpsTelemetriaRepository extends ReactiveCrudRepository<GpsTelem
       )
     """)
     Mono<Long> deleteOldTelemetryByDeviceId(Long deviceId);
-
-
 }

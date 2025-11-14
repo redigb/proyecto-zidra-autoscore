@@ -8,7 +8,7 @@ const char *ssid = "Wokwi-GUEST";
 const char *password = "";
 
 // ---- Config MQTT ----
-const char* mqtt_server = "192.168.0.110";  // -- ip servidor o localHost
+const char* mqtt_server = "192.168.0.109";  // -- ip servidor o localHost
 const int mqtt_port = 1883;
 
 // ---- DATOS DEL DISPOSITIVO
@@ -101,8 +101,8 @@ void loop() {
     JsonObject extra = doc.createNestedObject("extraData");
     extra["bateria"] = batteryLevel;
     extra["fuente"] = externalPower ? "Corriente" : "Bateria";
-    extra["temperatura"] = random(25, 35); // temperatura simulada
-    extra["altitud"] = 650;                // altitud base Tingo María
+    //extra["temperatura"] = random(25, 35); // temperatura simulada
+    //extra["altitud"] = 650;                // altitud base Tingo María
 
     String payload;
     serializeJson(doc, payload);

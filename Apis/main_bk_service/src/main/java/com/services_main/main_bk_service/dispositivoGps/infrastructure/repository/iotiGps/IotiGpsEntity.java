@@ -45,7 +45,7 @@ public class IotiGpsEntity {
     @Column("sim_plan")
     private String simPlan;            // plan contratado (ej. IoT 200MB)
 
-    // 🔑 Campos MQTT
+    // Campos MQTT
     @Column("mqtt_username")
     private String mqttUsername;
     @Column("mqtt_password")

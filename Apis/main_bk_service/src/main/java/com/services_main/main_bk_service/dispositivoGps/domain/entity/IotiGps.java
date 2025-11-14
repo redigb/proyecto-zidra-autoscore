@@ -25,7 +25,7 @@ public class IotiGps {
     private String simOperador;     // operador (Movistar, Claro, etc.)
     private String simPlan;         // plan contratado (ej. IoT 200MB)
 
-    // 🔑 Campos MQTT
+    // Campos MQTT
     private String mqttUsername;
     private String mqttPassword;
 
