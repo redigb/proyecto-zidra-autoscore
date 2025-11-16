@@ -1,0 +1,27 @@
+# Excluir carpetas generadas en runtime
+data/
+models/
+files/
+reports/
+
+# Excluir entornos
+venv/
+env/
+riskcore-ml-env/
+
+# Cache de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de logs
+*.log
+
+# Excluir archivos grandes y temporales
+*.parquet
+*.pkl
+
+# Editor configs
+.vscode/
+.idea/

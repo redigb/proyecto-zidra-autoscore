@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 
-# SCORING 
+# ---------- SCORING ----------
 class ScoreRequest(BaseModel):
     monto_total: float
     cuota_inicial: float
@@ -31,19 +31,19 @@ class ScoreResponse(BaseModel):
     version: int
 
 
-#  INFO DE MODELO 
+# ---------- INFO DE MODELOS ----------
 class ModelVersionInfo(BaseModel):
     mode: str
     version: int
     rows_train: int
     rows_valid: int
-    auc: float
-    ks: float
-    f1: float
-    precision: float
-    recall: float
-    decision_threshold: float
-    base_rate: float
+    auc: Optional[float] = None
+    ks: Optional[float] = None
+    f1: Optional[float] = None
+    precision: Optional[float] = None
+    recall: Optional[float] = None
+    decision_threshold: Optional[float] = None
+    base_rate: Optional[float] = None
     created_at: str
     file: str
 

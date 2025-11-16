@@ -33,7 +33,7 @@ def register_model(version, path, status="INACTIVO"):
         "registered_at": datetime.now().isoformat()
     })
     save_registry(registry)
-    print(f"✅ Modelo v{version} registrado con estado '{status}'")
+    print(f"Modelo v{version} registrado con estado '{status}'")
 
 # ============================================================
 # Activar un modelo (el anterior pasa a RESERVA)
@@ -49,11 +49,13 @@ def activate_model(version):
             entry["status"] = "RESERVA"
         else:
             entry["status"] = "ARCHIVADO"
+
     if not updated:
-        print(f"⚠ No se encontró el modelo v{version} en el registro")
+        print(f"No se encontro el modelo v{version} en el registro")
         return
+
     save_registry(registry)
-    print(f"🚀 Modelo v{version} activado correctamente")
+    print(f"Modelo v{version} activado correctamente")
 
 # ============================================================
 # Limpiar modelos antiguos (mantener solo 2)
@@ -62,21 +64,21 @@ def cleanup_old_models(keep_last=2):
     registry = load_registry()
     registry_sorted = sorted(registry, key=lambda x: x["version"], reverse=True)
 
-    # Mantener solo los más recientes
     keep = registry_sorted[:keep_last]
     remove = registry_sorted[keep_last:]
 
-    # Dar aviso o eliminar físicamente
     for entry in remove:
         path = entry["path"]
         if os.path.exists(path):
-            os.remove(path)
-            print(f"🗑 Modelo antiguo eliminado: {path}")
+            try:
+                os.remove(path)
+                print(f"Modelo antiguo eliminado: {path}")
+            except Exception as e:
+                print(f"No se pudo eliminar {path}: {e}")
         entry["status"] = "ELIMINADO"
 
-    # Guardar nuevo estado
     save_registry(keep)
-    print(f"♻ Limpieza completada. Manteniendo {keep_last} versiones más recientes.")
+    print(f"Limpieza completada. Manteniendo {keep_last} versiones mas recientes.")
 
 # ============================================================
 # Obtener modelo activo (para FastAPI / scoring)
@@ -86,16 +88,14 @@ def get_active_model_path():
     for entry in registry:
         if entry["status"] == "ACTIVO":
             return entry["path"]
-    print("⚠ No hay modelo activo en el registro")
+    print("No hay modelo activo en el registro")
     return None
 
-# ============================================================
 # CLI MANUAL
-# ============================================================
 def cli():
-    parser = argparse.ArgumentParser(description="Gestión de versiones del modelo de riesgo")
+    parser = argparse.ArgumentParser(description="Gestion de versiones del modelo de riesgo")
     parser.add_argument("--show", action="store_true", help="Mostrar registro de modelos")
-    parser.add_argument("--activate", type=int, help="Activar modelo por versión")
+    parser.add_argument("--activate", type=int, help="Activar modelo por version")
     parser.add_argument("--cleanup", action="store_true", help="Eliminar versiones antiguas")
 
     args = parser.parse_args()

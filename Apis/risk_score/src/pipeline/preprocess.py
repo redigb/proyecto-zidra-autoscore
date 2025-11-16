@@ -18,8 +18,8 @@ def load_feature_spec(path="src/pipeline/feature_spec.yaml"):
 # Cargar dataset parquet
 def load_dataset_parquet(path="data/dataset_ml_final.parquet"):
     if not os.path.exists(path):
-        raise FileNotFoundError(f"❌ No se encontró el dataset preprocessado en: {path}")
-    print(f"📦 Cargando dataset base desde: {path}")
+        raise FileNotFoundError(f"[ERROR] No se encontró el dataset preprocessado en: {path}")
+    print(f"[INFO] Cargando dataset base desde: {path}")
     return pd.read_parquet(path)
 
 
@@ -28,13 +28,11 @@ def build_preprocess_pipeline(feature_spec, df):
     numeric_features = []
     categorical_features = []
 
-    # Recorrer cada feature definida en YAML
     for feature, config in feature_spec.items():
         if feature not in df.columns:
-            print(f"⚠ WARNING: La columna '{feature}' no está en el dataset. Será ignorada.")
+            print(f"[WARN] La columna '{feature}' no está en el dataset. Será ignorada.")
             continue
 
-        # Normalizar mes_colocacion si está en string
         if feature == "mes_colocacion":
             df["mes_colocacion"] = pd.to_numeric(df["mes_colocacion"], errors="coerce").fillna(0).astype(int)
 
@@ -69,7 +67,7 @@ def build_preprocess_pipeline(feature_spec, df):
             )
         )
 
-    print("✅ Transformadores generados dinámicamente según el YAML")
+    print("[OK] Transformadores generados dinámicamente según el YAML")
     return ColumnTransformer(transformers=transformers, remainder="drop")
 
 
@@ -78,21 +76,20 @@ def preprocess_dataset():
     spec = load_feature_spec()
     df = load_dataset_parquet()
 
-    # ⚠ SOLO FILTRAR features definidos
     df = df[[f for f in spec.keys() if f in df.columns]]
-    print(f"🎯 Usando {len(df.columns)} columnas definidas en feature_spec.yaml")
+    print(f"[INFO] Usando {len(df.columns)} columnas definidas en feature_spec.yaml")
 
     preprocess_pipeline = build_preprocess_pipeline(spec, df)
 
-    print("⚙ Ajustando transformaciones...")
+    print("[INFO] Ajustando transformaciones...")
     X_transformed = preprocess_pipeline.fit_transform(df)
 
     os.makedirs("data", exist_ok=True)
     joblib.dump(preprocess_pipeline, "data/transformer.pkl")
     joblib.dump(X_transformed, "data/X_ready.pkl")
 
-    print("✅ Preprocesamiento finalizado.")
-    print("📁 Guardado: data/X_ready.pkl y data/transformer.pkl")
+    print("[OK] Preprocesamiento finalizado.")
+    print("[INFO] Guardado: data/X_ready.pkl y data/transformer.pkl")
 
 
 # MAIN

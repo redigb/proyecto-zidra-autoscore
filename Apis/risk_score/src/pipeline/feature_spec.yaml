@@ -33,11 +33,11 @@ features:
     imputacion: media
     aplica_a: ["nuevo", "existente"]
 
-  # 🚫 agente_acreditario — **ELIMINADO por sesgo**
+  # agente_acreditario — **ELIMINADO por sesgo**
 
-  # 🚫 estado_de_prestamo — **ELIMINADO por fuga de información**
+  # estado_de_prestamo — **ELIMINADO por fuga de información**
 
-  # ✅ NUEVAS FEATURES LIMPIAS DERIVADAS DEL ESTADO DE PRESTAMO
+  # NUEVAS FEATURES LIMPIAS DERIVADAS DEL ESTADO DE PRESTAMO
   cierre_exitoso:
     tipo: numerica
     imputacion: 0
@@ -53,7 +53,7 @@ features:
     imputacion: 0
     aplica_a: ["existente"]
 
-  # ========== 🔵 INFORMACIÓN DEL ACTIVO FINANCIADO ==========
+  # INFORMACIÓN DEL ACTIVO FINANCIADO
   bien_precio:
     tipo: numerica
     imputacion: media
@@ -64,7 +64,7 @@ features:
     imputacion: media
     aplica_a: ["nuevo", "existente"]
 
-  # ========== 🟣 INDICADORES DE CLIENTE ==========
+  # INDICADORES DE CLIENTE 
   n_contratos_previos:
     tipo: numerica
     imputacion: 0
@@ -75,7 +75,7 @@ features:
     imputacion: 0
     aplica_a: ["existente"]
 
-  # ========== ⚠ OPCIONAL SEGÚN TU pipeline ==========
+  # OPCIONAL SEGÚN TU pipeline 
   riesgo_cohorte:
     tipo: numerica
     imputacion: media

@@ -11,10 +11,8 @@ REPORTS_DIR = "reports"
 FILES_DIR = "files"
 os.makedirs(FILES_DIR, exist_ok=True)
 
-# ============================================================
-# 1. CARGAR TODAS LAS MÉTRICAS GUARDADAS
-# ============================================================
 
+# 1. CARGAR TODAS LAS METRICAS GUARDADAS
 def load_all_metrics():
     metric_files = glob.glob(os.path.join(REPORTS_DIR, "metrics_v*.json"))
     data = []
@@ -26,56 +24,48 @@ def load_all_metrics():
             data.append(info)
 
     if not data:
-        print("⚠ No se encontraron métricas en /reports/. Ejecuta primero train.py")
+        print("No se encontraron metricas en /reports/. Ejecuta primero train.py")
         return None
 
     df = pd.DataFrame(data)
     df = df.sort_values("version")
-    print(f"✅ {len(df)} registros de métricas cargados")
+    print(f"{len(df)} registros de metricas cargados")
     return df
 
-# ============================================================
-# 2. CREAR /files/historial_metricas.csv
-# ============================================================
 
+# 2. CREAR /files/historial_metricas.csv
 def build_metric_history_csv(df):
     csv_path = os.path.join(FILES_DIR, "historial_metricas.csv")
     df.to_csv(csv_path, index=False)
-    print(f"📁 Historial actualizado en: {csv_path}")
+    print(f"Historial actualizado en: {csv_path}")
 
-# ============================================================
-# 3. GENERAR GRÁFICOS DE TENDENCIA
-# ============================================================
 
+# 3. GENERAR GRAFICOS DE TENDENCIA
 def plot_trend(df, metric, out_path):
     if metric not in df.columns:
-        print(f"⚠ La métrica '{metric}' no está en los datos")
+        print(f"La metrica '{metric}' no esta en los datos")
         return
 
     plt.figure(figsize=(6,4))
     plt.plot(df["version"], df[metric], marker="o")
-    plt.title(f"Evolución de {metric.upper()} por versión de modelo")
-    plt.xlabel("Versión del modelo")
+    plt.title(f"Evolucion de {metric.upper()} por version de modelo")
+    plt.xlabel("Version del modelo")
     plt.ylabel(metric.upper())
     plt.grid(True)
     plt.savefig(out_path, dpi=150)
     plt.close()
-    print(f"📊 Gráfico generado: {out_path}")
+    print(f"Grafico generado: {out_path}")
 
-# ============================================================
-# 4. GENERAR REPORTE PDF CONSOLIDADO (SIEMPRE SOBREESCRIBE)
-# ============================================================
 
+# 4. GENERAR REPORTE PDF CONSOLIDADO
 def generate_consolidated_pdf(df):
     pdf_path = os.path.join(FILES_DIR, "report_evolucion_modelo.pdf")
     csv_path = os.path.join(FILES_DIR, "historial_metricas.csv")
 
-    # Crear PDF estilo reporte formal
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
 
-    # Título
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Reporte de Evolucion del Modelo de Riesgo", ln=True)
 
@@ -84,7 +74,6 @@ def generate_consolidated_pdf(df):
     pdf.multi_cell(0, 6, f"Historial guardado en: {csv_path}")
     pdf.ln(4)
 
-    # Insertar gráficos si existen
     for metric in ["auc", "ks"]:
         img_path = os.path.join(FILES_DIR, f"metric_trend_{metric}.png")
         if os.path.exists(img_path):
@@ -93,26 +82,29 @@ def generate_consolidated_pdf(df):
             pdf.image(img_path, w=150)
             pdf.ln(4)
 
-    # Añadir tabla resumida
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 8, "Resumen de metricas:", ln=True)
     pdf.set_font("Arial", "", 9)
 
     for _, row in df.iterrows():
-        pdf.cell(0, 6, f"v{int(row['version'])} | AUC={row['auc']} | KS={row['ks']} | F1={row.get('f1')} | Fecha={row.get('created_at')}", ln=True)
+        pdf.cell(
+            0,
+            6,
+            f"v{int(row['version'])} | AUC={row['auc']} | KS={row['ks']} | "
+            f"F1={row.get('f1')} | Fecha={row.get('created_at')}",
+            ln=True
+        )
 
     pdf.output(pdf_path)
-    print(f"📄 PDF consolidado generado: {pdf_path}")
+    print(f"PDF consolidado generado: {pdf_path}")
 
-# ============================================================
+
 # CLI / MAIN
-# ============================================================
-
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Gestión de métricas y reportes históricos.")
-    parser.add_argument("--update-history", action="store_true", help="Generar historial CSV y gráficos")
+    parser = argparse.ArgumentParser(description="Gestion de metricas y reportes historicos.")
+    parser.add_argument("--update-history", action="store_true", help="Generar historial CSV y graficos")
     parser.add_argument("--generate-pdf", action="store_true", help="Generar reporte PDF consolidado")
 
     args = parser.parse_args()
@@ -123,10 +115,10 @@ if __name__ == "__main__":
 
     if args.update_history:
         build_metric_history_csv(df)
-        # Generar gráficos de tendencias
         for metric in ["auc", "ks", "f1"]:
             out = os.path.join(FILES_DIR, f"metric_trend_{metric}.png")
-            plot_trend(df, metric, out)
+            # plot_trend(df, metric, out)   # Desactivado si no quieres graficos
 
     if args.generate_pdf:
-        generate_consolidated_pdf(df)
+        # generate_consolidated_pdf(df)   # Desactivado si no quieres PDF
+        pass

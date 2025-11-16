@@ -11,10 +11,6 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 
 class Settings:
 
-    # Paths
-    MODEL_DIR: str = "models"
-    TRANSFORMER_PATH: str = "data/transformer.pkl"
-
     class Config:
         env_file = ".env"
 
@@ -30,7 +26,5 @@ class Settings:
     MODEL_REGISTRY_JSON: Path = MODELS_DIR / "model_registry.json"
     MODEL_FEATURES_PATTERN: str = "features_v{version}.json"
     REPORT_PDF_PATH: Path = FILES_DIR / "report_evolucion_modelo.pdf"
-
-    # servicios exxteernros
 
 settings = Settings()

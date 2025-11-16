@@ -1,4 +1,33 @@
 
+# ============================
+#  ML Runtime Folders (IGNORE)
+# ============================
+data/
+models/
+files/
+reports/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtualenv
+venv/
+env/
+riskcore-ml-env/
+
+# Logs
+*.log
+
+# Parquet/PKL outputs
+*.parquet
+*.pkl
+
+# IDE
+.vscode/
+.idea/
 
 /riskcore-ml-env
 

@@ -26,9 +26,9 @@ def connect_pocketbase():
 
     try:
         auth_data = pb.collection('credi_users').auth_with_password(ZIDRA_USER, ZIDRA_PASS)
-        print("Conectado a PocketBase como:", ZIDRA_USER)
+        print("[OK] Conectado a PocketBase como:", ZIDRA_USER)
     except Exception as e:
-        print("Error al autenticar con PocketBase:", str(e))
+        print("[ERROR] Error al autenticar con PocketBase:", str(e))
         raise e
     return pb
 
@@ -60,7 +60,6 @@ def fetch_all_records(collection_name: str):
             break
         page += 1
 
-    # Asegurarse de que la lista final es completamente plana y compuesta solo por dicts
     flat_records = []
     for r in records:
         if isinstance(r, list):
@@ -68,58 +67,50 @@ def fetch_all_records(collection_name: str):
         else:
             flat_records.append(r)
 
-    print(f"Colección '{collection_name}' → {len(flat_records)} registros cargados")
+    print(f"[OK] Colección '{collection_name}': {len(flat_records)} registros cargados")
     return flat_records
+
 
 # COLECCIONES
 def fetch_contratos():
-    """
-    Carga datos de artefacto_prestante_producto → DataFrame listo para uso.
-    """
     data = fetch_all_records("artefacto_prestante_producto")
     return pd.DataFrame(data)
 
 def fetch_pagos():
-    """
-    Carga datos de cronograma_de_pagos → DataFrame listo para uso.
-    """
     data = fetch_all_records("cronograma_de_pagos")
     return pd.DataFrame(data)
 
 def fetch_recibos():
-    """
-    Carga pagos reales registrados en recibo_credito → DataFrame.
-    """
     data = fetch_all_records("recibo_credito")
     return pd.DataFrame(data)
+
 
 def record_to_dict(record):
     """
     Convierte un Record de PocketBase a dict, compatible con TODAS las versiones.
     """
-    # 1. Versiones modernas (tienen export)
     if hasattr(record, "export"):
         try:
             return record.export()
         except:
             pass
-    # 2. Versiones con dict() oficial
+
     if hasattr(record, "dict"):
         try:
             return record.dict()
         except:
             pass
-    # 3. Versiones antiguas (guardan en __dict__["data"])
+
     if "_data" in record.__dict__:
         return record.__dict__["_data"].copy()
 
     if "data" in record.__dict__:
         return record.__dict__["data"].copy()
-    # 4. Fallback universal
+
     return {k: v for k, v in record.__dict__.items() if not k.startswith("_")}
 
-# FUNCIÓN BASE PARA CONSTRUIR DATASET FINAL DEL MODELO
-# (por ahora solo trae las tablas, luego haremos merge con lógica ML)
+
+# FUNCIÓN PRINCIPAL PARA CONSTRUIR DATASET BASE
 def get_raw_datasets():
     """
     Trae las 3 tablas coherentes y vinculadas.
@@ -127,7 +118,7 @@ def get_raw_datasets():
     Filtra pagos y recibos SOLO para esos contratos.
     """
     pb = connect_pocketbase()
-    # Función universal para extraer colección
+
     def fetch_collection(collection):
         page = 1
         per_page = 200
@@ -139,7 +130,7 @@ def get_raw_datasets():
             if page >= res.total_pages:
                 break
             page += 1
-        print(f"✅ {collection} — registros cargados: {len(all_items)}")
+        print(f"[OK] {collection}: {len(all_items)} registros cargados")
         return pd.DataFrame(all_items)
 
     # (1) CONTRATOS → limitar a 2000
@@ -154,26 +145,28 @@ def get_raw_datasets():
 
     if len(contratos_df) > MAX_CONTRATOS:
         contratos_df = contratos_df.head(MAX_CONTRATOS)
-        print(f"⚠️ Downsampling contratos a {MAX_CONTRATOS}")
+        print(f"[INFO] Contratos reducidos a {MAX_CONTRATOS} (downsampling)")
+
     if len(contratos_df) < MIN_CONTRATOS:
-        raise Exception(f"Solo {len(contratos_df)} contratos. Se requieren {MIN_CONTRATOS}.")
-    print(f"📌 Contratos finales: {len(contratos_df)}")
+        raise Exception(f"[ERROR] Solo {len(contratos_df)} contratos. Se requieren al menos {MIN_CONTRATOS}.")
+
+    print(f"[OK] Contratos finales utilizados: {len(contratos_df)}")
+
     contrato_ids = contratos_df["id"].tolist()
-    # (2) PAGOS → enlazar por id_producto
+
+    # (2) PAGOS
     pagos_df = fetch_collection("cronograma_de_pagos")
     if "id_producto" not in pagos_df.columns:
-        raise Exception("ERROR: cronograma_de_pagos no contiene id_producto.")
+        raise Exception("[ERROR] cronograma_de_pagos no contiene columna id_producto.")
     pagos_df = pagos_df[pagos_df["id_producto"].isin(contrato_ids)]
-    print(f"📌 Pagos filtrados por contratos: {len(pagos_df)}")
-    
-    # (3) RECIBOS → enlazar DIRECTO por id_pago_contrato
-    recibos_df = fetch_collection("recibo_credito")
+    print(f"[OK] Pagos filtrados: {len(pagos_df)}")
 
+    # (3) RECIBOS
+    recibos_df = fetch_collection("recibo_credito")
     if "id_pago_contrato" not in recibos_df.columns:
-        raise Exception("❌ ERROR: recibo_credito no contiene id_pago_contrato.")
-    
+        raise Exception("[ERROR] recibo_credito no contiene columna id_pago_contrato.")
     recibos_df = recibos_df[recibos_df["id_pago_contrato"].isin(contrato_ids)]
-    print(f"📌 Recibos filtrados por contratos: {len(recibos_df)}")
+    print(f"[OK] Recibos filtrados: {len(recibos_df)}")
 
     return {
         "contratos": contratos_df,
@@ -181,9 +174,9 @@ def get_raw_datasets():
         "recibos": recibos_df,
     }
 
+
 if __name__ == "__main__":
-    # ✅ Test rápido de conexión
     data = get_raw_datasets()
-    print("\n✅ Datos cargados correctamente:")
+    print("\n[OK] Datos cargados correctamente:")
     for k, v in data.items():
         print(f" - {k}: {len(v)} filas")
