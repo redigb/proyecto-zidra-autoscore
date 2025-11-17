@@ -1,0 +1,52 @@
+# ===========================
+#   Python / ML .dockerignore
+# ===========================
+
+# Caches y temporales
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.log
+*.tmp
+
+# Directorios 
+.env
+venv/
+.venv/
+.env.local
+
+# Paquetes descargados
+*.egg-info/
+pip-wheel-metadata/
+wheels/
+
+# Archivos 
+**/models/*
+**/data/*
+**/files/*
+**/reports/*
+
+*.ipynb
+.ipynb_checkpoints/
+
+# Docker y Git
+.dockerignore
+Dockerfile
+.git/
+.gitignore
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Cache python
+pytest_cache/
+.cache/
+
+# PyTest / Coverage
+coverage.xml
+.htmlcov/
+.coverage*

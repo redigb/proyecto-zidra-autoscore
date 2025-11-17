@@ -1,0 +1,658 @@
+{
+  "name": "Zidra Risk Complete System",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evaluate-risk",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "24874737-aa61-41be-84b0-168ee22b1483",
+      "name": "Webhook - Evaluar Riesgo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -1024,
+        -608
+      ],
+      "webhookId": "zidra-risk-eval"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:8000/api/score",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.data_form_solicitud }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "35602930-8174-4056-8c3c-33ae11779f34",
+      "name": "Llamar API Risk Score",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -592,
+        -624
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"data_form\": {{ $('Formulario de solicitud de credito').item.json.data_form_solicitud }},\n  \"score_risk\": {\n    \"score\": {{ $json.score }},\n    \"riesgo\": \"{{ $json.riesgo }}\",\n    \"version_modelo_de_analisis\": \"v.{{ $json.version }}\"\n  }\n}",
+        "options": {}
+      },
+      "id": "cc272e59-f41f-4771-a27f-d03e3155683b",
+      "name": "Combinar Formulario + Score",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        -368,
+        -624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtener item del LLM\nconst item = items[0];\n\n// La respuesta viene en item.json.text\nlet response = item.json.text;\n\n// Validar que no venga vacío\nif (!response || typeof response !== \"string\") {\n  throw new Error(\"La respuesta del LLM está vacía o no es texto.\");\n}\n\n// Limpiar saltos de línea raros\nlet clean = response.trim()\n  .replace(/```json/gi, '')\n  .replace(/```/g, '')\n  .replace(/[\\n\\r\\t]+/g, ' ')\n  .trim();\n\n// Intentar parsear\nlet parsed;\ntry {\n  parsed = JSON.parse(clean);\n} catch (e) {\n  throw new Error(\"No se pudo parsear el JSON limpio:\\n\" + clean);\n}\n\n// Devolver JSON limpio\nreturn [{ json: parsed }];\n"
+      },
+      "id": "cb15e443-20ff-4d9e-939c-758574936952",
+      "name": "Validar y Estructurar JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -576
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "X-Processing-Time",
+                "value": "={{ $now.diff($node['Formulario de solicitud de credito'].json.timestamp_recepcion).milliseconds }}ms"
+              }
+            ]
+          }
+        }
+      },
+      "id": "6045110a-b605-4eaf-9dfb-4c2836d850ae",
+      "name": "Responder a Spring Boot",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        432,
+        -496
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-oss:20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        -400
+      ],
+      "id": "011df591-ee8f-4935-99e3-c23bcfd5b0b7",
+      "name": "Ollama Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "YQSxR6nfmCh7pTSB",
+          "name": "cuenta_redojofuego"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Eres un analista de riesgo. Interpreta el score crediticio del cliente.\n\nFormulario del cliente:\n{{ JSON.stringify($json.data_form, null, 2) }}\n\nResultado del score:\n{{ JSON.stringify($json.score_risk, null, 2) }}\n\n\nDebes devolver SIEMPRE y EXCLUSIVAMENTE un JSON válido con esta estructura exacta:\n\n{\n  \"nivel_riesgo\": \"\",\n  \"motivos\": [],\n  \"recomendacion\": \"\",\n  \"probabilidad_incumplimiento\": 0\n}\n\nNo agregues explicaciones fuera del JSON. No agregues texto adicional.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -128,
+        -592
+      ],
+      "id": "a236bf84-3d4c-40d5-8a18-64f4cf97c9ff",
+      "name": "Basic LLM Chain",
+      "executeOnce": false,
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "9516abbc-4b24-42bc-82b3-5079effb51d0",
+      "name": "Responder Historial",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -112,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:8000/api/models/history",
+        "options": {}
+      },
+      "id": "6366a7be-8452-451a-ac12-5507e06822f1",
+      "name": "Obtener Historial",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -320,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "path": "models/history",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "76578195-bab8-4b53-b794-fa3a4fc71249",
+      "name": "Webhook - Historial Modelos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -544,
+        464
+      ],
+      "webhookId": "4d9b40e4-4f0c-4e04-9bf1-5e1cca77d8b0"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "7648c077-157b-4bf1-a7b4-4cc89fb2cee7",
+      "name": "Responder Modelo Activo",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -80,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:8000/api/models/active",
+        "options": {}
+      },
+      "id": "18550409-8226-421f-bf57-43643eaa920c",
+      "name": "Obtener Modelo Activo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -288,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "path": "models/active",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "99703481-13da-4436-8a83-7579fffbd237",
+      "name": "Webhook - Modelo Activo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -512,
+        208
+      ],
+      "webhookId": "0e2c02dc-7b0a-4999-8443-cd595fd47fe9"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:8000/api/models/train",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "b63b6488-5543-4199-8a6a-5bb3fbef1a63",
+      "name": "Ejecutar Entrenamiento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -320,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "triggerAtHour": 2
+            }
+          ]
+        }
+      },
+      "id": "6ef493dc-7578-408c-bc09-88f34a2b4bbf",
+      "name": "Trigger Mensual Entrenamiento",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -544,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\"data_form_solicitud\":{{ $json.body }}}",
+        "include": "selected",
+        "options": {}
+      },
+      "id": "d866103a-abc8-4df1-8990-20960c6ae242",
+      "name": "Formulario de solicitud de credito",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        -816,
+        -624
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/tmp/training_log_{{$now}}.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        320,
+        -80
+      ],
+      "id": "293702a1-8681-482e-8f98-e3bd5491e263",
+      "name": "Read/Write Files from Disk",
+      "notes": "Cambiar de ruta a dataen unca acarpet de persitencia en compose."
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {
+          "fileName": "training_log_models_risk.json"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        96,
+        -80
+      ],
+      "id": "0816bed8-0714-4385-9703-d3bee7fb820b",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "53b29e32-816f-48bb-a5e3-563110eeb0a5",
+      "name": "Responder Modelo Activo1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        160,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "fileSelector": "/tmp/training_log_*.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        672
+      ],
+      "id": "922edd3b-0dc6-4122-b85c-6fa3516e9312",
+      "name": "Read/Write Files from Disk1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Leer data del nodo de entrenamiento\nconst train = $node[\"Ejecutar Entrenamiento\"]?.json;\n\n// Leer data del trigger\nconst trig = $node[\"Trigger Mensual Entrenamiento\"]?.json;\n\n// Validar existencia\nif (!train) {\n  throw new Error(\"⚠ No se encontró data del nodo 'Ejecutar Entrenamiento'\");\n}\n\nif (!trig) {\n  throw new Error(\"⚠ No se encontró data del nodo 'Trigger Mensual Entrenamiento'\");\n}\n\n// Armar el JSON final, limpio y correcto\nconst log = {\n  training: {\n    status: train.status,\n    steps: train.steps,\n    active_model: train.active_model,\n  },\n  fecha_de_ejecucion: trig[\"Readable date\"],\n};\n\n// SIEMPRE devolver array de un item\nreturn [\n  {\n    json: log\n  }\n];\n"
+      },
+      "id": "123bbde1-acec-4f21-bbb5-f8b273acecaa",
+      "name": "Armar data de los logs1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "path": "=models/logs/train",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8f0d36fe-26cf-4c52-a727-a0d20db01d84",
+      "name": "Webhook - Models Train",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -544,
+        672
+      ],
+      "webhookId": "0e2c02dc-7b0a-4999-8443-cd595fd47fe9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Obtener todos los archivos leídos\nconst items = $input.all();\n\nif (!items.length) {\n    throw new Error(\"No se encontraron archivos para procesar.\");\n}\n\n// 2. Ordenar archivos por nombre DESC (el más nuevo primero)\n//    El nombre contiene timestamps → perfecto para ordenar\nitems.sort((a, b) => {\n  const nameA = a.binary.data.fileName || \"\";\n  const nameB = b.binary.data.fileName || \"\";\n  return nameB.localeCompare(nameA); // DESC → más reciente primero\n});\n\n// 3. Tomar solo el archivo más reciente\nconst latest = items[0];\n\nif (!latest?.binary?.data?.data) {\n    throw new Error(\"El archivo más reciente no tiene contenido válido.\");\n}\n\n// 4. Leer Base64\nconst base64 = latest.binary.data.data;\n\n// 5. Decodificar Base64 → texto\nconst text = Buffer.from(base64, \"base64\").toString(\"utf8\");\n\n// 6. Parsear JSON (maneja errores automáticamente)\nlet parsed;\ntry {\n    parsed = JSON.parse(text);\n} catch (err) {\n    throw new Error(\"El contenido del archivo no es JSON válido:\\n\" + text);\n}\n\n// 7. Si el archivo contiene un ARRAY → tomar el primer objeto\nif (Array.isArray(parsed)) {\n    parsed = parsed[0];\n}\n\n// 8. Devolver JSON como objeto (n8n lo exige)\nreturn [\n  {\n    json: parsed\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        672
+      ],
+      "id": "9d854a3b-5b1f-4c47-a962-1ea002eb66a0",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "content": "## Url de esatdo de la api y sus modelos\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/sticky-notes/)",
+        "height": 768,
+        "width": 1392
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -880,
+        144
+      ],
+      "typeVersion": 1,
+      "id": "877b5e31-edc8-4749-a538-4d3d3fbad01a",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Ruta principal para predecir riegos de morosidad.\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/sticky-notes/)",
+        "height": 432,
+        "width": 2016,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1296,
+        -688
+      ],
+      "typeVersion": 1,
+      "id": "37b847ce-1b13-4533-9c31-18bda3092ae0",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Reentrenamiento cada 30 dias el primer dia a las 2 de la mañana\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/sticky-notes/)",
+        "height": 256,
+        "width": 1456,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -880,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "964e2721-218e-43f6-9d70-3be8d54f473a",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Evaluar Riesgo": {
+      "main": [
+        [
+          {
+            "node": "Formulario de solicitud de credito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llamar API Risk Score": {
+      "main": [
+        [
+          {
+            "node": "Combinar Formulario + Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar y Estructurar JSON": {
+      "main": [
+        [
+          {
+            "node": "Responder a Spring Boot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Formulario + Score": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Validar y Estructurar JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Historial": {
+      "main": [
+        [
+          {
+            "node": "Responder Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Historial Modelos": {
+      "main": [
+        [
+          {
+            "node": "Obtener Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Modelo Activo": {
+      "main": [
+        [
+          {
+            "node": "Responder Modelo Activo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Modelo Activo": {
+      "main": [
+        [
+          {
+            "node": "Obtener Modelo Activo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ejecutar Entrenamiento": {
+      "main": [
+        [
+          {
+            "node": "Armar data de los logs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Mensual Entrenamiento": {
+      "main": [
+        [
+          {
+            "node": "Ejecutar Entrenamiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formulario de solicitud de credito": {
+      "main": [
+        [
+          {
+            "node": "Llamar API Risk Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        []
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Armar data de los logs1": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Models Train": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Responder Modelo Activo1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "fOsIJyy9WnhL1rGI",
+    "timezone": "America/Lima",
+    "executionTimeout": -1
+  },
+  "versionId": "3ff40c21-7727-4067-b88f-f9de52a5bb0a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e1f880e4a36eadc0ac37de7ccabe316fbac86cbf070a26fd380f123baecbb780"
+  },
+  "id": "fOsIJyy9WnhL1rGI",
+  "tags": []
+}

@@ -1,0 +1,72 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres_autoscore
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - autoscore_net
+    restart: always
+
+  api_risk:
+    build: ./api-risk-score   # Usa tu Dockerfile
+    container_name: api_risk_score
+    environment:
+      POCKETBASE_URL: ${POCKETBASE_URL}
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    volumes:
+      - api_risk_data:/app/data
+      - api_risk_models:/app/models
+      - api_risk_reports:/app/reports
+      - api_risk_files:/app/files
+    depends_on:
+      - postgres
+    networks:
+      - autoscore_net
+    restart: always
+    # API-RISK no se expone públicamente
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n_autoscore
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_BASIC_AUTH_ACTIVE: "false"
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: 5678
+      DB_TYPE: postgres
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB}
+      DB_POSTGRESDB_USER: postgres
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      GENERIC_TIMEZONE: America/New_York
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - n8n_logs:/home/node/logs
+    depends_on:
+      - postgres
+      - api_risk
+    networks:
+      - autoscore_net
+    restart: always
+
+networks:
+  autoscore_net:
+
+volumes:
+  postgres_data:
+  n8n_data:
+  n8n_logs:
+  api_risk_data:
+  api_risk_models:
+  api_risk_reports:
+  api_risk_files:
