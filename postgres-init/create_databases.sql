@@ -1,0 +1,2 @@
+CREATE DATABASE autoscore_db;
+CREATE DATABASE n8n_db;
