@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB_AUTOSCORE}
+      POSTGRES_DB: postgres
     ports:
       - "5433:5432"
     volumes:
@@ -16,25 +16,21 @@ services:
     networks:
       - autoscore_net
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
 
   api_risk:
-    build: ./Apis/risk_score
+    image: redigb/api_risk:latest
     environment:
       URL_API_ZIDRA: ${URL_API_ZIDRA}
       USUARIO_ZIDRA: ${USUARIO_ZIDRA}
       PASSWORD_ZIDRA: ${PASSWORD_ZIDRA}
-
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_AUTOSCORE}
-
     ports:
-      - "8000:8000"
+      - "8000:8000"     # 👈 API pública sin traefik
     networks:
       - autoscore_net
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
 
@@ -42,27 +38,23 @@ services:
     image: n8nio/n8n:latest
     environment:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
-
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432
       DB_POSTGRESDB_DATABASE: ${POSTGRES_DB_N8N}
       DB_POSTGRESDB_USER: ${POSTGRES_USER}
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
-
       GENERIC_TIMEZONE: America/New_York
       N8N_HOST: "0.0.0.0"
       N8N_PORT: 5678
       N8N_PROTOCOL: http
-
     ports:
-      - "5678:5678"
+      - "5678:5678"    # 👈 N8N público sin traefik
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
       - autoscore_net
     deploy:
-      replicas: 1
       restart_policy:
         condition: any
 
