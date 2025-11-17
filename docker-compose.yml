@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
 
   postgres:
@@ -21,7 +23,6 @@ services:
       timeout: 5s
       retries: 5
 
-
   api_risk:
     build: ./Apis/risk_score
     container_name: api_risk_score
@@ -35,8 +36,15 @@ services:
         condition: service_healthy
     networks:
       - autoscore_net
+      - dokploy-network
     restart: always
-
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api_risk.rule=Host(`api-risk.rdev7.net.pe`)"
+      - "traefik.http.routers.api_risk.entrypoints=websecure"
+      - "traefik.http.routers.api_risk.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api_risk.loadbalancer.server.port=8000"
+      - "traefik.docker.network=dokploy-network"
 
   n8n:
     image: n8nio/n8n:latest
@@ -44,11 +52,35 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB_N8N}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      GENERIC_TIMEZONE: America/New_York
+      N8N_HOST: "localhost"
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
     networks:
       - autoscore_net
       - dokploy-network
     restart: always
-
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`n8n.rdev7.net.pe`)"
+      - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls.certresolver=letsencrypt"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+      - "traefik.docker.network=dokploy-network"
 
 networks:
   autoscore_net:
