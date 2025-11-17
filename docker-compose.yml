@@ -6,14 +6,20 @@ services:
     image: postgres:15
     container_name: postgres_autoscore
     environment:
-      POSTGRES_USER: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
     volumes:
-      - ../files/postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
     networks:
       - autoscore_net
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 
   api_risk:
@@ -21,14 +27,17 @@ services:
     container_name: api_risk_score
     environment:
       URL_API_ZIDRA: ${URL_API_ZIDRA}
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_AUTOSCORE}
+      USUARIO_ZIDRA: ${USUARIO_ZIDRA}
+      PASSWORD_ZIDRA: ${PASSWORD_ZIDRA}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_AUTOSCORE}
     volumes:
-      - ../files/api_risk_data:/app/data
-      - ../files/api_risk_models:/app/models
-      - ../files/api_risk_reports:/app/reports
-      - ../files/api_risk_files:/app/files
+      - api_risk_data:/app/data
+      - api_risk_models:/app/models
+      - api_risk_reports:/app/reports
+      - api_risk_files:/app/files
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - autoscore_net
     restart: always
@@ -38,16 +47,17 @@ services:
     image: n8nio/n8n:latest
     container_name: n8n_autoscore
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       N8N_BASIC_AUTH_ACTIVE: "false"
 
       DB_TYPE: postgresdb
-      DB_POSTGRESDB_HOST: 172.19.0.2
+      DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432
       DB_POSTGRESDB_DATABASE: ${POSTGRES_DB_N8N}
-      DB_POSTGRESDB_USER: postgres
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
 
       GENERIC_TIMEZONE: America/New_York
@@ -55,6 +65,9 @@ services:
       N8N_PROTOCOL: https
 
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+
+    volumes:
+      - n8n_data:/home/node/.n8n
 
     labels:
       - "traefik.enable=true"
@@ -75,10 +88,8 @@ networks:
 
 volumes:
   postgres_data:
-  postgres-init:
   api_risk_data:
   api_risk_models:
   api_risk_reports:
   api_risk_files:
   n8n_data:
-  n8n_logs:
