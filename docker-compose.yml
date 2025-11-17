@@ -44,7 +44,7 @@ services:
       N8N_BASIC_AUTH_ACTIVE: "false"
 
       DB_TYPE: postgresdb
-      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_HOST: 172.19.0.2
       DB_POSTGRESDB_PORT: 5432
       DB_POSTGRESDB_DATABASE: ${POSTGRES_DB_N8N}
       DB_POSTGRESDB_USER: postgres
