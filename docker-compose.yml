@@ -18,7 +18,7 @@ services:
 
 
   api_risk:
-    build: ./api-risk-score   # Usa tu Dockerfile
+    build: ./Apis/risk_score
     container_name: api_risk_score
     environment:
       URL_API_ZIDRA: ${URL_API_ZIDRA}
