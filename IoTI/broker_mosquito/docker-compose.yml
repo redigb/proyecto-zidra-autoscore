@@ -1,12 +1,15 @@
 version: "3.8"
+
 services:
   mosquitto:
     image: eclipse-mosquitto:2
     container_name: mosquitto
-    restart: unless-stopped
+    restart: always
+
     ports:
-      - "1883:1883"   # MQTT TCP
-      - "9001:9001"   # MQTT WebSockets
+      - "1883:1883"   # MQTT TCP (necesario para ESP32)
+      - "9001:9001"   # WebSockets (opcional)
+
     volumes:
       - ./config:/mosquitto/config
       - ./data:/mosquitto/data
