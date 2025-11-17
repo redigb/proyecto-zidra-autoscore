@@ -66,9 +66,9 @@ services:
     restart: always
 
 
-
 networks:
   autoscore_net:
+    driver: bridge
 
 
 volumes:
