@@ -9,10 +9,11 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./postgres-init:/docker-entrypoint-initdb.d
+      - ../files/postgres_data:/var/lib/postgresql/data
+      - ../files/postgres-init:/docker-entrypoint-initdb.d
     networks:
       - autoscore_net
+      - dokploy-network
     restart: always
 
 
@@ -23,10 +24,10 @@ services:
       URL_API_ZIDRA: ${URL_API_ZIDRA}
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB_AUTOSCORE}
     volumes:
-      - api_risk_data:/app/data
-      - api_risk_models:/app/models
-      - api_risk_reports:/app/reports
-      - api_risk_files:/app/files
+      - ../files/api_risk_data:/app/data
+      - ../files/api_risk_models:/app/models
+      - ../files/api_risk_reports:/app/reports
+      - ../files/api_risk_files:/app/files
     depends_on:
       - postgres
     networks:
@@ -40,7 +41,8 @@ services:
     environment:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       N8N_BASIC_AUTH_ACTIVE: "false"
-      DB_TYPE: postgres
+
+      DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432
       DB_POSTGRESDB_DATABASE: ${POSTGRES_DB_N8N}
@@ -48,28 +50,41 @@ services:
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
 
       GENERIC_TIMEZONE: America/New_York
-    ports:
-      - "5678:5678"
+
+      # Dominio
+      N8N_HOST: n8nzdr.rdev7.net.pe
+      N8N_PROTOCOL: https 
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`n8nzdr.rdev7.net.pe`)"
+      - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls.certresolver=letsencrypt"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+
     volumes:
-      - n8n_data:/home/node/.n8n
-      - n8n_logs:/home/node/logs
-    depends_on:
-      - postgres
-      - api_risk
+      - ../files/n8n_data:/home/node/.n8n
+      - ../files/n8n_logs:/home/node/logs
+
     networks:
       - autoscore_net
+      - dokploy-network
     restart: always
 
 
 
 networks:
   autoscore_net:
+  dokploy-network:
+    external: true
+
 
 volumes:
   postgres_data:
-  n8n_data:
-  n8n_logs:
+  postgres-init:
   api_risk_data:
   api_risk_models:
   api_risk_reports:
   api_risk_files:
+  n8n_data:
+  n8n_logs:
