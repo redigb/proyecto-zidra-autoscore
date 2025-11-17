@@ -9,11 +9,14 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"  # Puerto externo 5433 para evitar conflictos con Dokploy
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
     networks:
-      - autoscore_net
+      autoscore_net:
+        ipv4_address: 172.19.0.2
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
@@ -41,6 +44,12 @@ services:
     networks:
       - autoscore_net
     restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api_risk.rule=Host(`api-risk.rdev7.net.pe`)"
+      - "traefik.http.routers.api_risk.entrypoints=websecure"
+      - "traefik.http.routers.api_risk.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api_risk.loadbalancer.server.port=8000"
 
 
   n8n:
@@ -63,6 +72,8 @@ services:
       GENERIC_TIMEZONE: America/New_York
       N8N_HOST: ${N8N_HOST}
       N8N_PROTOCOL: https
+      N8N_PORT: 5678
+      WEBHOOK_URL: https://${N8N_HOST}/
 
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
 
@@ -84,6 +95,10 @@ services:
 networks:
   autoscore_net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+          gateway: 172.19.0.1
 
 
 volumes:
