@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: postgres
     ports:
-      - "5433:5432"  # Puerto externo 5433 para evitar conflictos con Dokploy
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d
@@ -60,22 +60,20 @@ services:
         condition: service_healthy
     environment:
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
-      N8N_BASIC_AUTH_ACTIVE: "false"
 
       DB_TYPE: postgresdb
-      DB_POSTGRESDB_HOST: 172.19.0.2
+      DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432
       DB_POSTGRESDB_DATABASE: ${POSTGRES_DB_N8N}
       DB_POSTGRESDB_USER: ${POSTGRES_USER}
       DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
 
       GENERIC_TIMEZONE: America/New_York
-      N8N_HOST: ${N8N_HOST}
-      N8N_PROTOCOL: http
-      N8N_PORT: 5678
-      WEBHOOK_URL: http://95.111.234.46:5678/
 
-      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      # SIN dominio, solo puerto
+      N8N_HOST: "localhost"
+      N8N_PROTOCOL: "http"
+      N8N_PORT: 5678
 
     ports:
       - "5678:5678"
@@ -85,10 +83,12 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.n8n.rule=Host(`${N8N_HOST}`)"
       - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.rule=Host(`n8n.rdev7.net.pe`)"
       - "traefik.http.routers.n8n.tls.certresolver=letsencrypt"
       - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+
+      # Necesario para funcionar con Dokploy
       - "traefik.docker.network=dokploy-network"
 
     networks:
@@ -104,9 +104,9 @@ networks:
       config:
         - subnet: 172.19.0.0/16
           gateway: 172.19.0.1
+
   dokploy-network:
     external: true
-
 
 volumes:
   postgres_data:
