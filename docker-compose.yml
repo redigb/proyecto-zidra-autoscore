@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ../files/postgres_data:/var/lib/postgresql/data
-      - ../files/postgres-init:/docker-entrypoint-initdb.d
+      - ./postgres-init:/docker-entrypoint-initdb.d
     networks:
       - autoscore_net
     restart: always
@@ -53,6 +53,8 @@ services:
       GENERIC_TIMEZONE: America/New_York
       N8N_HOST: ${N8N_HOST}
       N8N_PROTOCOL: https
+
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
 
     labels:
       - "traefik.enable=true"
