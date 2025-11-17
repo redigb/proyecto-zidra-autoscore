@@ -38,7 +38,7 @@ public class MqttAdapter {
                 options.setPassword(propertiesMqtt.getPassword().toCharArray());
 
                 client.connect(options);
-                System.out.println("✅ Conectado a MQTT en " + propertiesMqtt.getBroker());
+                System.out.println("Conectado a MQTT en " + propertiesMqtt.getBroker());
 
                 // re-suscribir todos los listeners registrados
                 for (var l : listeners) {
@@ -47,7 +47,7 @@ public class MqttAdapter {
                 }
             }
         } catch (Exception e) {
-            System.err.println("❌ Error al conectar a MQTT: " + e.getMessage());
+            System.err.println("!Error al conectar a MQTT: " + e.getMessage());
         }
     }
 
@@ -55,9 +55,9 @@ public class MqttAdapter {
         listeners.add(Pair.of(topic, listener)); // guardar
         if (client != null && client.isConnected()) {
             client.subscribe(topic, listener);
-            System.out.println("📡 Suscrito a " + topic);
+            System.out.println("Suscrito a " + topic);
         } else {
-            System.err.println("⚠️ Cliente no conectado aún, guardado para más tarde: " + topic);
+            System.err.println("Cliente no conectado aún, guardado para más tarde: " + topic);
         }
     }
 
@@ -65,7 +65,7 @@ public class MqttAdapter {
         if (client != null && client.isConnected()) {
             client.publish(topic, new MqttMessage(message.getBytes()));
         } else {
-            System.err.println("⚠️ No se puede publicar, cliente MQTT no conectado.");
+            System.err.println("!No se puede publicar, cliente MQTT no conectado.");
         }
     }
 }

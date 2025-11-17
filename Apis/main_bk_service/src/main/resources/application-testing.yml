@@ -1,0 +1,25 @@
+server:
+  port: 3050
+  address: 0.0.0.0
+
+spring:
+  application:
+    name: main-bk-service
+
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/service_proyect_ia
+    username: postgres
+    password: postgres
+
+  sql:
+    init:
+      mode: never
+
+api:
+  prefix: /api
+
+mqtt:
+  broker: tcp://localhost:1883
+  clientId: backend-testing
+  username: backend
+  password: root

@@ -1,0 +1,25 @@
+server:
+  port: 3050
+  address: 0.0.0.0
+
+spring:
+  application:
+    name: main-bk-service
+
+  r2dbc:
+    url: ${HOST_POSTGRES_DB:r2dbc:postgresql://postgres:5432/service_proyect_ia}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+
+  sql:
+    init:
+      mode: never
+
+api:
+  prefix: /api
+
+mqtt:
+  broker: ${URL_MQTT_SERVER:tcp://mosquitto:1883}
+  clientId: backend-prod
+  username: ${MQTT_USERNAME:backend}
+  password: ${MQTT_PASSWORD:root}

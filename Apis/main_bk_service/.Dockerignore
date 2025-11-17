@@ -1,0 +1,52 @@
+# Maven build folders
+target/
+out/
+
+# IntelliJ / Eclipse / VSCode project files
+.idea/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+.vscode/
+
+# OS system files
+.DS_Store
+Thumbs.db
+
+# Logs local
+*.log
+
+# Node modules (por si algún módulo trae UI)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment & config local
+.env
+.env.*
+*.local
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+
+# Backup files
+*.orig
+*.rej
+
+# Build output from IDEs
+bin/
+build/
+
+# Cache files
+.cache/
+.mvn/
