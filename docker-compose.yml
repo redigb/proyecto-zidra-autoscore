@@ -71,11 +71,14 @@ services:
 
       GENERIC_TIMEZONE: America/New_York
       N8N_HOST: ${N8N_HOST}
-      N8N_PROTOCOL: https
+      N8N_PROTOCOL: http
       N8N_PORT: 5678
-      WEBHOOK_URL: https://${N8N_HOST}/
+      WEBHOOK_URL: http://95.111.234.46:5678/
 
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+
+    ports:
+      - "5678:5678"
 
     volumes:
       - n8n_data:/home/node/.n8n
