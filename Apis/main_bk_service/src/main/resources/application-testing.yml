@@ -19,7 +19,7 @@ api:
   prefix: /api
 
 mqtt:
-  broker: tcp://localhost:1883
+  broker: tcp://95.111.234.46:1883
   clientId: backend-testing
   username: backend
   password: root
