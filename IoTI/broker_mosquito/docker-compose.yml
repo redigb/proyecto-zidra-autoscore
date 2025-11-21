@@ -5,24 +5,12 @@ services:
     image: eclipse-mosquitto:2
     container_name: mosquitto
     restart: always
+
     ports:
-      - "1883:1883"   # MQTT TCP 
-      - "9001:9001"   # WebSockets
+      - "1883:1883"   # MQTT TCP (necesario para ESP32)
+      - "9001:9001"   # WebSockets (opcional)
+
     volumes:
-      #  Archivo de configuración desde Dokploy File Mounts
-      - ../files/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      #  Named volumes para persistencia de datos
-      - mosquitto_data:/mosquitto/data
-      - mosquitto_log:/mosquitto/log
-    networks:
-      - dokploy-network
-
-volumes:
-  mosquitto_data:
-    driver: local
-  mosquitto_log:
-    driver: local
-
-networks:
-  dokploy-network:
-    external: true
+      - ../files/config:/mosquitto/config
+      - ../files/data:/mosquitto/data
+      - ../files/log:/mosquitto/log
