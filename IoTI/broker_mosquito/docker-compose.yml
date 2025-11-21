@@ -7,10 +7,14 @@ services:
     restart: always
 
     ports:
-      - "1883:1883"   # MQTT TCP (necesario para ESP32)
-      - "9001:9001"   # WebSockets (opcional)
+      - "1883:1883"
+      - "9001:9001"
 
     volumes:
-      - ../files/config:/mosquitto/config
-      - ../files/data:/mosquitto/data
-      - ../files/log:/mosquitto/log
+      - ../files/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:s
