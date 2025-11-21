@@ -17,4 +17,4 @@ services:
 
 volumes:
   mosquitto_data:
-  mosquitto_log:s
+  mosquitto_log:
