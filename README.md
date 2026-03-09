@@ -4,9 +4,11 @@ Bienvenido al repositorio principal de **Zidra Risk & IoT Tracking System**, una
 
 ## 🎯 ¿De qué trata y cuál es nuestra intención?
 
+Este repositorio representa el **proyecto final desarrollado para la empresa**, diseñado con el firme propósito de aportar un alto valor estratégico, tecnológico y operativo al negocio.
+
 El propósito principal de este sistema es **evaluar el riesgo crediticio mediante Inteligencia Artificial** y, al mismo tiempo, **gestionar y rastrear en tiempo real los activos financiados (como vehículos) a través de dispositivos GPS**.
 
-Esta doble funcionalidad permite a la organización no solo tomar decisiones financieras más seguras e informadas a la hora de otorgar créditos, sino también proteger y monitorear la garantía física durante todo el ciclo de vida del préstamo.
+Esta doble funcionalidad permite a la organización no solo tomar decisiones financieras más seguras e informadas a la hora de otorgar créditos, sino también proteger y monitorear la garantía física durante todo el ciclo de vida del préstamo, asegurando así la rentabilidad y mitigando pérdidas.
 
 ## 🏗️ Arquitectura y Estructura del Proyecto
 
